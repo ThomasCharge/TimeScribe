@@ -331,7 +331,7 @@ class TimestampController extends Controller
             dispatch_sync(new MenubarRefresh);
         }
 
-        return to_route('overview.day.show', ['date' => $timestampBefore->created_at->format('Y-m-d')]);
+        return to_route('overview.day.show', ['date' => $timestampBefore->started_at->format('Y-m-d')]);
     }
 
     public function merge(MergeTimestampRequest $request): Redirector|RedirectResponse
