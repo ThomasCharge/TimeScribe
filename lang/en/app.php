@@ -220,6 +220,7 @@ return [
     'pdf settings' => 'PDF Settings',
     'pick a date' => 'Pick a date',
     'planned' => 'Planned',
+    'polish' => 'Polish',
     'portrait' => 'Portrait',
     'portuguese (BR)' => 'Portuguese (BR)',
     'press a shortcut...' => 'Press a shortcut...',

@@ -220,6 +220,7 @@ return [
     'pdf settings' => 'Configurações de PDF',
     'pick a date' => 'Escolha uma data',
     'planned' => 'Planejado',
+    'polish' => 'Polonês',
     'portrait' => 'Retrato',
     'portuguese (BR)' => 'Português (BR)',
     'press a shortcut...' => 'Pressione um atalho...',

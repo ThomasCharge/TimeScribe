@@ -220,6 +220,7 @@ return [
     'pdf settings' => 'PDF-indstillinger',
     'pick a date' => 'Vælg en dato',
     'planned' => 'Planlagt',
+    'polish' => 'Polsk',
     'portrait' => 'Stående',
     'portuguese (BR)' => 'Portugisisk (BR)',
     'press a shortcut...' => 'Tryk en genvej...',

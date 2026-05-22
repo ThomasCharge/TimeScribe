@@ -90,6 +90,7 @@ Simply put: It's a professional time tracking tool that respects your privacy an
 - 🇫🇷 French (FR/CA)
 - 🇩🇪 German
 - 🇮🇹 Italian
+- 🇵🇱 Polish
 - 🇧🇷 Portuguese (BR)
 - 🇨🇳 Chinese (中文)
 

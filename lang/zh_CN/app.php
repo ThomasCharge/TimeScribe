@@ -220,6 +220,7 @@ return [
     'pdf settings' => 'PDF 设置',
     'pick a date' => '选择日期',
     'planned' => '已计划',
+    'polish' => '波兰语',
     'portrait' => '纵向',
     'portuguese (BR)' => '葡萄牙语 (巴西)',
     'press a shortcut...' => '按下快捷键...',
