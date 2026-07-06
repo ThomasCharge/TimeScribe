@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Helpers;
 
+use App\Support\DateTimeFormat;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
@@ -22,7 +23,7 @@ class DateHelper
         return [
             'diff' => $date->locale('de')->diffForHumans(options: CarbonInterface::JUST_NOW),
             'formatted' => $date->format($format),
-            'date' => $date->format('Y-m-d'.($withTime ? ' H:i:s' : '')),
+            'date' => $date->format(DateTimeFormat::DATE_VALUE.($withTime ? ' H:i:s' : '')),
             'day' => $date->format('j'),
         ];
     }

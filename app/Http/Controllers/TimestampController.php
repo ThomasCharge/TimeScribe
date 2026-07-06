@@ -18,6 +18,7 @@ use App\Models\Project;
 use App\Models\Timestamp;
 use App\Services\TimestampService;
 use App\Settings\ProjectSettings;
+use App\Support\DateTimeFormat;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Redirector;
@@ -82,17 +83,17 @@ class TimestampController extends Controller
             $endDatetime = $maxTime;
         }
 
-        Inertia::share(['date' => $datetime->format('Y-m-d')]);
+        Inertia::share(['date' => $datetime->format(DateTimeFormat::DATE_VALUE)]);
 
         return Inertia::modal('Timestamp/Create', [
-            'min_time' => $minTime->format('H:i'),
-            'max_time' => $maxTime->format('H:i'),
-            'start_time' => $endDatetime ? $datetime->format('H:i') : null,
-            'end_time' => $endDatetime ? $endDatetime->format('H:i') : null,
-            'submit_route' => route('timestamp.store', ['datetime' => $datetime->format('Y-m-d H:i:s')]),
+            'min_time' => $minTime->format(DateTimeFormat::TIME_VALUE),
+            'max_time' => $maxTime->format(DateTimeFormat::TIME_VALUE),
+            'start_time' => $endDatetime ? $datetime->format(DateTimeFormat::TIME_VALUE) : null,
+            'end_time' => $endDatetime ? $endDatetime->format(DateTimeFormat::TIME_VALUE) : null,
+            'submit_route' => route('timestamp.store', ['datetime' => $datetime->format(DateTimeFormat::DATE_TIME_VALUE)]),
             'projects' => ProjectResource::collection(Project::scopes('sortedByLatestTimestamp')->get()),
             'type' => $type === 'work' ? 'break' : null,
-        ])->baseRoute('overview.day.show', ['date' => now()->format('Y-m-d')]);
+        ])->baseRoute('overview.day.show', ['date' => $datetime->format(DateTimeFormat::DATE_VALUE)]);
     }
 
     /**
@@ -123,44 +124,34 @@ class TimestampController extends Controller
             ]);
         }
 
-        $lastTimestamp = Timestamp::where('ended_at', '<=', $startTime->copy()->endOfMinute())
-            ->where('ended_at', '>=', $startTime->copy()->startOfDay())
-            ->orderByDesc('started_at')
-            ->first();
-        $nextTimestamp = Timestamp::where('started_at', '>=', $endTime)
-            ->where(function ($query) use ($endTime, $datetime): void {
-                $query->where('ended_at', '<=', $endTime->copy()->endOfDay())
-                    ->orWhere(function ($query) use ($datetime): void {
-                        $query->whereNull('ended_at')->where('started_at', '<=', $datetime->copy()->endOfDay());
-                    });
+        $dayStart = $startTime->copy()->startOfDay();
+        $dayEnd = $startTime->copy()->endOfDay();
+
+        $overlappingTimestamp = Timestamp::where('started_at', '>=', $dayStart)
+            ->where('started_at', '<=', $dayEnd)
+            ->where('started_at', '<', $endTime)
+            ->where(function ($query) use ($startTime): void {
+                $query->where('ended_at', '>', $startTime)
+                    ->orWhereNull('ended_at');
             })
-            ->orderBy('started_at')
             ->first();
 
-        if ($lastTimestamp && $lastTimestamp->ended_at->format('Y-m-d H:i') === $startTime->format('Y-m-d H:i')) {
-            $startTime = $lastTimestamp->ended_at;
-        }
-
-        if (($lastTimestamp && $lastTimestamp->ended_at > $startTime) || ($nextTimestamp && $nextTimestamp->started_at < $endTime)) {
+        if ($overlappingTimestamp) {
             return back()->withErrors([
                 'started_at' => __('app.the start or end time overlaps with another time span.'),
             ]);
         }
-
-        if ($nextTimestamp && $nextTimestamp->started_at->format('Y-m-d H:i') === $endTime->format('Y-m-d H:i')) {
-            $endTime = $nextTimestamp->started_at;
-        }
-        if ($endTime->format('H:i') === '23:59') {
+        if ($endTime->format(DateTimeFormat::TIME_VALUE) === DateTimeFormat::END_OF_DAY_TIME) {
             $endTime = $endTime->endOfDay();
         }
 
-        Inertia::share(['date' => $datetime->format('Y-m-d')]);
+        Inertia::share(['date' => $datetime->format(DateTimeFormat::DATE_VALUE)]);
 
         TimestampService::create($startTime, $endTime, TimestampTypeEnum::tryFrom($data['type']), $data['description'] ?? null, $data['project_id'] ?? null);
 
         dispatch(new CalculateWeekBalance);
 
-        return to_route('overview.day.show', ['date' => $datetime->format('Y-m-d')]);
+        return to_route('overview.day.show', ['date' => $datetime->format(DateTimeFormat::DATE_VALUE)]);
     }
 
     /**
@@ -190,15 +181,15 @@ class TimestampController extends Controller
             $maxTime = $timestampAfter ? $timestampAfter->started_at : $timestamp->ended_at->copy()->endOfDay();
         }
 
-        Inertia::share(['date' => $timestamp->created_at->format('Y-m-d')]);
+        Inertia::share(['date' => $timestamp->created_at->format(DateTimeFormat::DATE_VALUE)]);
 
         return Inertia::modal('Timestamp/Edit', [
-            'min_time' => $minTime->format('H:i'),
-            'max_time' => $maxTime?->format('H:i'),
+            'min_time' => $minTime->format(DateTimeFormat::TIME_VALUE),
+            'max_time' => $maxTime?->format(DateTimeFormat::TIME_VALUE),
             'submit_route' => route('timestamp.update', ['timestamp' => $timestamp->id]),
             'timestamp' => TimestampResource::make($timestamp),
             'projects' => ProjectResource::collection(Project::scopes('sortedByLatestTimestamp')->get()),
-        ])->baseRoute('overview.day.show', ['date' => $timestamp->created_at->format('Y-m-d')]);
+        ])->baseRoute('overview.day.show', ['date' => $timestamp->created_at->format(DateTimeFormat::DATE_VALUE)]);
     }
 
     /**
@@ -208,10 +199,14 @@ class TimestampController extends Controller
     {
         $data = $request->validated();
 
-        $startTime = $timestamp->started_at->copy()->setTimeFromTimeString($data['started_at']);
+        $startTime = $timestamp->started_at->copy()
+            ->setTimeFromTimeString($data['started_at']);
 
         $hasEndedAt = $request->has('ended_at');
-        $workingEndTime = $hasEndedAt ? $timestamp->ended_at->copy()->setTimeFromTimeString($data['ended_at']) : now();
+
+        $workingEndTime = $hasEndedAt
+            ? $startTime->copy()->setTimeFromTimeString($data['ended_at'])
+            : now();
 
         if ($startTime > $workingEndTime) {
             return back()->withErrors([
@@ -231,41 +226,42 @@ class TimestampController extends Controller
             ]);
         }
 
-        if ($startTime->format('Y-m-d H:i') === $timestamp->started_at->format('Y-m-d H:i')) {
+        if ($startTime->format(DateTimeFormat::DATE_TIME_VALUE) === $timestamp->started_at->format(DateTimeFormat::DATE_TIME_VALUE)) {
             $startTime = $timestamp->started_at;
         }
 
-        if ($hasEndedAt && $workingEndTime->format('Y-m-d H:i') === $timestamp->ended_at->format('Y-m-d H:i')) {
+        if (
+            $hasEndedAt &&
+            $timestamp->ended_at &&
+            $workingEndTime->format(DateTimeFormat::DATE_TIME_VALUE) === $timestamp->ended_at->format(DateTimeFormat::DATE_TIME_VALUE)
+        ) {
             $workingEndTime = $timestamp->ended_at;
         }
 
-        $lastTimestamp = Timestamp::where('ended_at', '<=', $startTime)
-            ->where('ended_at', '>=', $startTime->copy()->startOfDay())
-            ->orderByDesc('started_at')
+        $dayStart = $startTime->copy()->startOfDay();
+        $dayEnd = $startTime->copy()->endOfDay();
+
+        $overlappingTimestamp = Timestamp::where('id', '!=', $timestamp->id)
+            ->where('started_at', '>=', $dayStart)
+            ->where('started_at', '<=', $dayEnd)
+            ->where('started_at', '<', $workingEndTime)
+            ->where(function ($query) use ($startTime): void {
+                $query->where('ended_at', '>', $startTime)
+                    ->orWhereNull('ended_at');
+            })
             ->first();
 
-        $nextTimestamp = Timestamp::where('started_at', '>=', $workingEndTime)
-            ->where('ended_at', '<=', $workingEndTime->copy()->endOfDay())
-            ->orderBy('started_at')
-            ->first();
-
-        if (($lastTimestamp && $lastTimestamp->ended_at > $startTime) || ($nextTimestamp && $nextTimestamp->started_at < $workingEndTime)) {
+        if ($overlappingTimestamp) {
             return back()->withErrors([
                 'started_at' => __('app.the start or end time overlaps with another time span.'),
             ]);
         }
 
-        if ($lastTimestamp && $lastTimestamp->ended_at->format('Y-m-d H:i') === $startTime->format('Y-m-d H:i')) {
-            $startTime = $lastTimestamp->ended_at;
-        }
-        if ($hasEndedAt && $nextTimestamp && $nextTimestamp->started_at->format('Y-m-d H:i') === $workingEndTime->format('Y-m-d H:i')) {
-            $workingEndTime = $nextTimestamp->started_at;
-        }
-        if ($hasEndedAt && $workingEndTime->format('H:i') === '23:59') {
+        if ($hasEndedAt && $workingEndTime->format(DateTimeFormat::TIME_VALUE) === DateTimeFormat::END_OF_DAY_TIME) {
             $workingEndTime = $workingEndTime->endOfDay();
         }
 
-        Inertia::share(['date' => $startTime->format('Y-m-d')]);
+        Inertia::share(['date' => $startTime->format(DateTimeFormat::DATE_VALUE)]);
 
         $timestamp->type = $data['type'];
         $timestamp->started_at = $startTime;
@@ -288,7 +284,7 @@ class TimestampController extends Controller
             dispatch_sync(new MenubarRefresh);
         }
 
-        return to_route('overview.day.show', ['date' => $startTime->format('Y-m-d')]);
+        return to_route('overview.day.show', ['date' => $startTime->format(DateTimeFormat::DATE_VALUE)]);
     }
 
     /**
@@ -296,8 +292,8 @@ class TimestampController extends Controller
      */
     public function destroy(DestroyTimestampRequest $request, Timestamp $timestamp): Redirector|RedirectResponse
     {
-        Inertia::share(['date' => $timestamp->started_at->format('Y-m-d')]);
-        $date = $timestamp->started_at->format('Y-m-d');
+        Inertia::share(['date' => $timestamp->started_at->format(DateTimeFormat::DATE_VALUE)]);
+        $date = $timestamp->started_at->format(DateTimeFormat::DATE_VALUE);
         $isToday = $timestamp->started_at->isToday();
         $request->validated();
         $timestamp->delete();
@@ -331,7 +327,7 @@ class TimestampController extends Controller
             dispatch_sync(new MenubarRefresh);
         }
 
-        return to_route('overview.day.show', ['date' => $timestampBefore->started_at->format('Y-m-d')]);
+        return to_route('overview.day.show', ['date' => $timestampBefore->started_at->format(DateTimeFormat::DATE_VALUE)]);
     }
 
     public function merge(MergeTimestampRequest $request): Redirector|RedirectResponse
@@ -347,7 +343,7 @@ class TimestampController extends Controller
             return back();
         }
 
-        $date = $mergedTimestamp->started_at->format('Y-m-d');
+        $date = $mergedTimestamp->started_at->format(DateTimeFormat::DATE_VALUE);
 
         Inertia::share(['date' => $date]);
 

@@ -1,10 +1,14 @@
 <script lang="ts" setup>
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip'
+import { VALUE_DATE_TIME_FORMAT } from '@/lib/dateTimeFormats'
 import { Timestamp } from '@/types'
 import { router } from '@inertiajs/vue3'
 import { BriefcaseBusiness, Coffee } from '@lucide/vue'
 import moment from 'moment/min/moment-with-locales'
 import { ref, watch } from 'vue'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
+
+const { formatTimestampTime } = useTimeFormat()
 
 const props = withDefaults(
     defineProps<{
@@ -23,29 +27,98 @@ const timeline = ref<Record<string, Timestamp | undefined>>({})
 const isToday = moment().isSame(moment(props.date, 'YYYY-MM-DD'), 'day')
 const isFuture = moment().isBefore(moment(props.date, 'YYYY-MM-DD'), 'day')
 
+const createDayMoment = () => moment(props.date, 'YYYY-MM-DD')
+
+const timeToMoment = (time?: Timestamp['started_at']) => {
+    if (!time) {
+        return undefined
+    }
+
+    if (time.date) {
+        const parsedDate = moment(time.date)
+
+        if (parsedDate.isValid()) {
+            return parsedDate
+        }
+    }
+
+    if (!time.formatted) {
+        return undefined
+    }
+
+    const digits = time.formatted.replace(/\D/g, '')
+
+    if (!digits) {
+        return undefined
+    }
+
+    const padded = digits.length <= 4
+        ? digits.padStart(4, '0')
+        : digits.padStart(6, '0')
+
+    const hours = digits.length <= 4
+        ? parseInt(padded.slice(0, 2))
+        : parseInt(padded.slice(0, 2))
+
+    const minutes = digits.length <= 4
+        ? parseInt(padded.slice(2, 4))
+        : parseInt(padded.slice(2, 4))
+
+    const seconds = digits.length <= 4
+        ? 0
+        : parseInt(padded.slice(4, 6))
+
+    if (
+        isNaN(hours) ||
+        isNaN(minutes) ||
+        isNaN(seconds) ||
+        hours < 0 ||
+        hours > 23 ||
+        minutes < 0 ||
+        minutes > 59 ||
+        seconds < 0 ||
+        seconds > 59
+    ) {
+        return undefined
+    }
+
+    return createDayMoment()
+        .hour(hours)
+        .minute(minutes)
+        .second(seconds)
+}
+
 const parseTimestamps = () => {
     props.timestamps.forEach((timestamp) => {
-        const start = Math.floor(parseInt(timestamp.started_at.formatted) / 10) * 10
-        const ended_at = timestamp.ended_at ?? timestamp.last_ping_at
-        let end = Math.floor(parseInt(ended_at?.formatted ?? '') / 10) * 10
-        if (end.toString().endsWith('60')) {
-            end = end - 60 + 100
-        }
-        if (end === 2400) {
-            end = end - 50
+        const start = timeToMoment(timestamp.started_at)
+        const end = timeToMoment(timestamp.ended_at ?? timestamp.last_ping_at)
+
+        if (!start || !end || end.isSameOrBefore(start)) {
+            return
         }
 
-        for (let j = start; j <= end; j += 10) {
-            if (j === end && ended_at && ended_at.date.endsWith(':00')) {
-                continue
-            }
-            timeline.value[j.toString()] = { ...timestamp }
+        const dayStart = createDayMoment().startOf('day')
+        const dayEnd = createDayMoment().endOf('day')
 
-            if (j.toString().endsWith('50')) {
-                j += 40
+        const safeStart = moment.max(start, dayStart)
+        const safeEnd = moment.min(end, dayEnd)
+
+        let slot = safeStart.clone()
+            .minute(Math.floor(safeStart.minute() / 10) * 10)
+            .second(0)
+
+        while (slot.isSameOrBefore(safeEnd)) {
+            const slotEnd = slot.clone().add(10, 'minutes')
+
+            if (safeStart.isBefore(slotEnd) && safeEnd.isAfter(slot)) {
+                const index = slot.hour() * 100 + slot.minute()
+                timeline.value[index.toString()] = { ...timestamp }
             }
+
+            slot.add(10, 'minutes')
         }
     })
+
     markOvertime()
 }
 
@@ -62,11 +135,14 @@ const markOvertime = () => {
 }
 
 const createTimeline = () => {
+    timeline.value = {}
+
     for (let i = 0; i < 2400; i += 100) {
         for (let j = 0; j < 60; j += 10) {
             timeline.value[(j + i).toString()] = undefined
         }
     }
+
     parseTimestamps()
 }
 
@@ -93,22 +169,32 @@ const dragStart = (index: string, type?: 'work' | 'break') => {
     startDragIndex.value = parseInt(index)
 }
 const dragOver = (index: string, type?: 'work' | 'break') => {
-    if (drag.value && startDragIndex.value !== undefined) {
-        if (dragType.value !== type || (isToday && parseInt(moment().format('HHmm')) < parseInt(index.toString()))) {
-            dragStop()
-            return
-        }
-        currentDragIndex.value = parseInt(index)
+    if (!drag.value || startDragIndex.value === undefined) {
+        return
     }
+
+    const indexNumber = parseInt(index)
+
+    if (dragType.value !== type) {
+        dragStop()
+        return
+    }
+
+    if (isToday && createDateTimeFromIndex(indexNumber, 10).isAfter(moment())) {
+        dragStop()
+        return
+    }
+
+    currentDragIndex.value = indexNumber
 }
 
 const dragStop = () => {
     if (startDragIndex.value !== undefined && currentDragIndex.value !== undefined && drag.value === true) {
-        let startDatetime = createDateTimeFromIndex(startDragIndex.value).format('YYYY-MM-DD HH:mm:ss')
-        let endDatetime = createDateTimeFromIndex(currentDragIndex.value, 10).format('YYYY-MM-DD HH:mm:ss')
+        let startDatetime = createDateTimeFromIndex(startDragIndex.value).format(VALUE_DATE_TIME_FORMAT)
+        let endDatetime = createDateTimeFromIndex(currentDragIndex.value, 10).format(VALUE_DATE_TIME_FORMAT)
         if (startDragIndex.value > currentDragIndex.value) {
-            startDatetime = createDateTimeFromIndex(currentDragIndex.value).format('YYYY-MM-DD HH:mm:ss')
-            endDatetime = createDateTimeFromIndex(startDragIndex.value, 10).format('YYYY-MM-DD HH:mm:ss')
+            startDatetime = createDateTimeFromIndex(currentDragIndex.value).format(VALUE_DATE_TIME_FORMAT)
+            endDatetime = createDateTimeFromIndex(startDragIndex.value, 10).format(VALUE_DATE_TIME_FORMAT)
         }
         router.visit(
             route('timestamp.create', {
@@ -127,15 +213,24 @@ const dragStop = () => {
 }
 
 const createDateTimeFromIndex = (index: number, addMinutes?: number) => {
-    const date = moment(props.date, 'YYYY-MM-DD')
+    const date = createDayMoment()
     const hours = Math.floor(index / 100)
     const minutes = index % 100
+
     date.hour(hours)
     date.minute(minutes)
     date.second(0)
+
     if (addMinutes) {
-        date.add(addMinutes, 'm')
+        date.add(addMinutes, 'minutes')
     }
+
+    const dayEnd = createDayMoment().endOf('day')
+
+    if (date.isAfter(dayEnd)) {
+        return dayEnd
+    }
+
     return date
 }
 
@@ -156,17 +251,37 @@ const dragLeave = () => {
     }
 }
 
-const indexToTimeFormat = (index: string, withoutMinutesBy12H?: boolean, dragModus?: boolean) => {
-    const time = moment(
-        (parseInt(index) > 100 ? index.toString().slice(0, -2) : '0') +
-            ':' +
-            (parseInt(index) > 10 ? index.toString().slice(-2) : '00'),
-        'H:mm'
-    ).add(dragModus ? 10 : 0, 'm')
+const indexToTimeFormat = (
+    index: string,
+    withoutMinutesBy12H?: boolean,
+    dragModus?: boolean
+) => {
+    const indexNumber = parseInt(index)
 
-    const output = time.format('LT').replace(/^0([0-9])/g, '$1')
+    const hours = Math.floor(indexNumber / 100)
+    const minutes = indexNumber % 100
 
-    return withoutMinutesBy12H ? output.replace(/:00 (PM|AM)/, ' $1') : output
+    const time = moment()
+        .hour(hours)
+        .minute(minutes)
+        .second(0)
+        .millisecond(0)
+
+    if (dragModus) {
+        time.add(10, 'minutes')
+
+        if (indexNumber === 2350) {
+            time.hour(23)
+            time.minute(59)
+            time.second(59)
+        }
+    }
+
+    const output = formatTimestampTime(time).replace(/^0([0-9])/, '$1')
+
+    return withoutMinutesBy12H
+        ? output.replace(/:00(?::00)? (PM|AM)/, ' $1')
+        : output
 }
 
 watch(props, () => {

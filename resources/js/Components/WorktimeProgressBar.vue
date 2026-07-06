@@ -1,8 +1,10 @@
 <script lang="ts" setup>
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { Absence } from '@/types'
 import { BriefcaseBusiness, ClockArrowDown, ClockArrowUp, Coffee, Cross, Drama, TreePalm } from '@lucide/vue'
 import { computed } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = withDefaults(
     defineProps<{
@@ -54,6 +56,7 @@ const percentageOverTime = computed(() => {
                 {{ $t('app.h') }}
             </bdi>
         </div>
+
         <div class="bg-muted relative grow overflow-hidden rounded-t-lg">
             <div
                 :class="{
@@ -72,6 +75,7 @@ const percentageOverTime = computed(() => {
                     v-if="props.activeWork"
                 />
             </div>
+
             <div
                 :style="{
                     height: `${percentageOverTime}%`
@@ -85,6 +89,7 @@ const percentageOverTime = computed(() => {
                 />
             </div>
         </div>
+
         <div class="mt-2 h-14 space-y-1">
             <div v-if="props.absences.length">
                 <div
@@ -103,41 +108,46 @@ const percentageOverTime = computed(() => {
                     {{ $t('app.sick') }}
                 </div>
             </div>
+
             <div class="flex items-center justify-center text-purple-400" v-else-if="props.isHoliday">
                 <Drama class="size-4 shrink-0" />
             </div>
+
             <div
-                class="text-muted-foreground flex items-center justify-between gap-1 text-xs"
+                class="text-muted-foreground grid grid-cols-[1rem_9ch] items-center justify-center gap-1 text-xs"
                 dir="ltr"
                 v-if="props.workTime && ((!props.absences.length && !props.isHoliday) || !props.hasWorkSchedule)"
             >
-                <BriefcaseBusiness class="size-4 shrink-0" />
-                <bdi>
-                    {{ secToFormat(props.workTime ?? 0, false, true) }}
+                <BriefcaseBusiness class="size-4 shrink-0 justify-self-center" />
+                <bdi class="w-[9ch] text-right font-mono tabular-nums">
+                    {{ formatSeconds(props.workTime ?? 0) }}
                 </bdi>
             </div>
+
             <div
-                class="text-muted-foreground flex items-center justify-between gap-1 text-xs"
+                class="text-muted-foreground grid grid-cols-[1rem_9ch] items-center justify-center gap-1 text-xs"
                 dir="ltr"
                 v-if="props.breakTime && !props.absences.length"
             >
-                <Coffee class="size-4 shrink-0" />
-                <bdi> </bdi>
-                {{ secToFormat(props.breakTime ?? 0, false, true) }}
+                <Coffee class="size-4 shrink-0 justify-self-center" />
+                <bdi class="w-[9ch] text-right font-mono tabular-nums">
+                    {{ formatSeconds(props.breakTime ?? 0) }}
+                </bdi>
             </div>
+
             <div
                 :class="{
                     'text-green-500': timePlanDifference < 0,
                     'text-amber-400': timePlanDifference > 0
                 }"
-                class="flex items-center justify-between gap-1 text-xs"
+                class="grid grid-cols-[1rem_9ch] items-center justify-center gap-1 text-xs"
                 dir="ltr"
                 v-if="timePlanDifference !== 0 && props.workTime && props.hasWorkSchedule"
             >
-                <ClockArrowUp class="size-4 shrink-0" v-if="timePlanDifference > 0" />
-                <ClockArrowDown class="size-4 shrink-0" v-if="timePlanDifference < 0" />
-                <bdi>
-                    {{ secToFormat(timePlanDifference, false, true, true, true) }}
+                <ClockArrowUp class="size-4 shrink-0 justify-self-center" v-if="timePlanDifference > 0" />
+                <ClockArrowDown class="size-4 shrink-0 justify-self-center" v-if="timePlanDifference < 0" />
+                <bdi class="w-[9ch] text-right font-mono tabular-nums">
+                    {{ formatSeconds(timePlanDifference, { noLeadingZero: true, withAbs: true }) }}
                 </bdi>
             </div>
         </div>

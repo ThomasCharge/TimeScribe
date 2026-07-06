@@ -1,13 +1,15 @@
 <script lang="ts" setup>
 import { Button } from '@/Components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { Timestamp } from '@/types'
 import { Link, router } from '@inertiajs/vue3'
 import { BriefcaseBusiness, Coffee, FolderInput, FoldVertical, MoveRight, Pencil, Timer, Trash } from '@lucide/vue'
 import { useIntervalFn } from '@vueuse/core'
 import moment from 'moment/min/moment-with-locales'
 import { ref, watch } from 'vue'
+
+const { formatSeconds, formatTimestampTime } = useTimeFormat()
 
 const props = defineProps<{
     timestamp: Timestamp
@@ -48,16 +50,21 @@ const destroy = () => {
 }
 
 const canMerge = () => {
-    if (!props.timestampBefore) return false
+    if (!props.timestampBefore || !props.timestampBefore.ended_at) {
+        return false
+    }
+
+    const currentStart = moment(props.timestamp.started_at.date)
+    const previousEnd = moment(props.timestampBefore.ended_at.date)
+    const gapSeconds = currentStart.diff(previousEnd, 'seconds')
+
     return (
         props.timestampBefore.type === props.timestamp.type &&
         props.timestampBefore.project?.id === props.timestamp.project?.id &&
-        props.timestampBefore.ended_at !== null &&
-        (props.timestampBefore.ended_at?.formatted === props.timestamp.started_at.formatted ||
-            Math.floor(
-                moment(props.timestamp.started_at.date).diff(props.timestampBefore.ended_at?.date).valueOf() / 1000 / 60
-            ) === 0) &&
-        props.timestampBefore.paid === props.timestamp.paid
+        props.timestampBefore.paid === props.timestamp.paid &&
+        currentStart.isSame(previousEnd, 'day') &&
+        gapSeconds >= 0 &&
+        gapSeconds <= 59
     )
 }
 
@@ -127,12 +134,7 @@ watch(
             <Timer class="text-muted-foreground size-4" />
             <span class="font-medium">
                 <bdi>
-                    {{ duration > 59 ? secToFormat(duration, false, true, true) : duration }}
-                </bdi>
-            </span>
-            <span class="text-muted-foreground text-xs">
-                <bdi>
-                    {{ duration > 59 ? $t('app.h') : $t('app.s') }}
+                    {{ formatSeconds(duration, { noLeadingZero: true }) }}
                 </bdi>
             </span>
         </div>
@@ -144,7 +146,7 @@ watch(
                 </span>
                 <span class="leading-none font-medium">
                     <bdi>
-                        {{ moment(props.timestamp.started_at.formatted, 'Hmm').format('LT') }}
+                        {{ formatTimestampTime(props.timestamp.started_at.date) }}
                     </bdi>
                 </span>
             </div>
@@ -155,11 +157,7 @@ watch(
                 </span>
                 <span class="leading-none font-medium">
                     <bdi>
-                        {{
-                            moment((props.timestamp.ended_at ?? props.timestamp.last_ping_at)?.formatted, 'Hmm').format(
-                                'LT'
-                            )
-                        }}
+                        {{ formatTimestampTime((props.timestamp.ended_at ?? props.timestamp.last_ping_at)?.date) }}
                     </bdi>
                 </span>
             </div>

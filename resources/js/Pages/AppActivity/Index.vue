@@ -5,8 +5,10 @@ import { PageHeader } from '@/Components/ui-custom/page-header'
 import { categoryIcon } from '@/lib/utils'
 import { AppActivityHistory } from '@/types'
 import { Head, router, usePage, usePoll } from '@inertiajs/vue3'
-import { trans } from 'laravel-vue-i18n'
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     historyApp: {
@@ -44,13 +46,6 @@ onMounted(() => {
 onUnmounted(() => {
     startAnimation.value = false
 })
-
-const secToFormat = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-
-    return hours > 0 ? `${hours} ${trans('app.h')} ${minutes} ${trans('app.min')}` : `${minutes} ${trans('app.min')}`
-}
 
 const dateRange = ref({
     start: props.startDate,
@@ -118,10 +113,9 @@ if (window.Native) {
                 <div class="flex flex-1 flex-col gap-1.5">
                     <div class="flex justify-between gap-2 leading-none">
                         <span>{{ app.name }}</span>
-                        <div class="text-muted-foreground ml-auto tabular-nums" v-if="app.sum >= 60">
-                            {{ secToFormat(app.sum) }}
+                        <div class="text-muted-foreground ml-auto tabular-nums">
+                            {{ formatSeconds(app.sum) }}
                         </div>
-                        <div class="text-muted-foreground ml-auto tabular-nums" v-else>> 1 {{ $t('app.min') }}</div>
                     </div>
                     <div class="bg-muted h-1.75 shrink-0 overflow-hidden rounded-full">
                         <div
@@ -140,10 +134,9 @@ if (window.Native) {
                 <div class="flex flex-1 flex-col gap-1.5">
                     <div class="flex justify-between gap-2 leading-none">
                         <span>{{ category.name }}</span>
-                        <div class="text-muted-foreground ml-auto tabular-nums" v-if="category.sum >= 60">
-                            {{ secToFormat(category.sum) }}
+                        <div class="text-muted-foreground ml-auto tabular-nums">
+                            {{ formatSeconds(category.sum) }}
                         </div>
-                        <div class="text-muted-foreground ml-auto tabular-nums" v-else>> 1 {{ $t('app.min') }}</div>
                     </div>
                     <div class="bg-muted h-1.75 shrink-0 overflow-hidden rounded-full">
                         <div

@@ -10,6 +10,7 @@ import { Button } from '@/Components/ui/button'
 import { Absence, GetTimeWithDetails, Timestamp } from '@/types'
 import { Head, Link, router } from '@inertiajs/vue3'
 import moment from 'moment/min/moment-with-locales'
+import { END_OF_DAY_TIME, VALUE_TIME_FORMAT } from '@/lib/dateTimeFormats'
 
 const props = defineProps<{
     date: string
@@ -23,8 +24,16 @@ const props = defineProps<{
     hasWorkSchedules: boolean
 }>()
 
-const calcDuration = (startTimestamp: string, endTimestamp?: string) =>
-    Math.floor(moment(startTimestamp).diff(endTimestamp).valueOf() / 1000 / 60)
+const calcDuration = (startTimestamp: string, endTimestamp?: string) => {
+    if (!endTimestamp) {
+        return 0
+    }
+
+    return Math.max(
+        Math.floor(moment(startTimestamp).diff(endTimestamp).valueOf() / 1000),
+        0
+    )
+}
 
 const startOfDay = props.date + ' 00:00:00'
 const isFuture = moment().isBefore(moment(props.date, 'YYYY-MM-DD'), 'day')
@@ -96,7 +105,7 @@ if (window.Native) {
             />
             <template :key="timestamp.id" v-for="(timestamp, index) in props.timestamps">
                 <TimestampListPlaceholderItem
-                    :duration="calcDuration(timestamp.started_at.date, props.timestamps[index - 1].ended_at?.date)"
+                    :duration="calcDuration(timestamp.started_at.date, props.timestamps[index - 1]?.ended_at?.date)"
                     :start-of-day="startOfDay"
                     :timestamp-after="timestamp"
                     :timestamp-before="props.timestamps[index - 1]"
@@ -114,7 +123,7 @@ if (window.Native) {
                 v-if="
                     props.timestamps.length > 0 &&
                     props.timestamps[props.timestamps.length - 1].ended_at &&
-                    moment(props.timestamps[props.timestamps.length - 1].ended_at?.date).format('HH:mm') !== '23:59'
+                    moment(props.timestamps[props.timestamps.length - 1].ended_at?.date).format(VALUE_TIME_FORMAT) !== END_OF_DAY_TIME
                 "
             />
         </div>

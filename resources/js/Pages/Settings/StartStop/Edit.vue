@@ -9,10 +9,10 @@ import moment from 'moment/min/moment-with-locales'
 import { ref, watch } from 'vue'
 
 const props = defineProps<{
-    stopBreakAutomatic?: string
-    stopBreakAutomaticActivationTime?: string
-    stopWorkTimeReset?: number
-    stopBreakTimeReset?: number
+    stopBreakAutomatic?: string | null
+    stopBreakAutomaticActivationTime?: string | null
+    stopWorkTimeReset?: number | null
+    stopBreakTimeReset?: number | null
 }>()
 
 const form = useForm({
@@ -30,9 +30,12 @@ const submit = () => {
     })
 }
 
-const stopBreakAutomatikCheck = ref(props.stopBreakAutomatic !== null)
-const stopBreakAutomatikActivationCheck = ref(props.stopBreakAutomaticActivationTime !== null)
-const stopTimeResetCheck = ref(!!(props.stopWorkTimeReset || props.stopBreakTimeReset))
+const stopBreakAutomaticCheck = ref(!!props.stopBreakAutomatic)
+const stopBreakAutomaticActivationCheck = ref(!!props.stopBreakAutomaticActivationTime)
+const stopTimeResetCheck = ref(
+    (props.stopWorkTimeReset ?? 0) > 0 ||
+    (props.stopBreakTimeReset ?? 0) > 0
+)
 
 const debouncedSubmit = useDebounceFn(submit, 500)
 watch(
@@ -45,14 +48,14 @@ watch(
     debouncedSubmit,
     { deep: true }
 )
-watch(stopBreakAutomatikCheck, () => {
-    if (stopBreakAutomatikCheck.value === false) {
+watch(stopBreakAutomaticCheck, () => {
+    if (stopBreakAutomaticCheck.value === false) {
         form.stopBreakAutomatic = ''
-        stopBreakAutomatikActivationCheck.value = false
+        stopBreakAutomaticActivationCheck.value = false
     }
 })
-watch(stopBreakAutomatikActivationCheck, () => {
-    if (stopBreakAutomatikActivationCheck.value === false) {
+watch(stopBreakAutomaticActivationCheck, () => {
+    if (stopBreakAutomaticActivationCheck.value === false) {
         form.stopBreakAutomaticActivationTime = ''
     }
 })
@@ -84,10 +87,10 @@ watch(stopTimeResetCheck, () => {
                             }}
                         </p>
                     </div>
-                    <Switch v-model="stopBreakAutomatikCheck" />
+                    <Switch v-model="stopBreakAutomaticCheck" />
                 </div>
 
-                <Select v-if="stopBreakAutomatikCheck" v-model="form.stopBreakAutomatic">
+                <Select v-if="stopBreakAutomaticCheck" v-model="form.stopBreakAutomatic">
                     <SelectTrigger class="mt-4 ml-auto w-1/2">
                         <SelectValue :placeholder="$t('app.action')" />
                     </SelectTrigger>
@@ -102,7 +105,7 @@ watch(stopTimeResetCheck, () => {
                 </Select>
             </div>
         </div>
-        <div class="flex items-start space-x-4 py-4" v-if="stopBreakAutomatikCheck">
+        <div class="flex items-start space-x-4 py-4" v-if="stopBreakAutomaticCheck">
             <AlarmClockCheck />
             <div class="flex-1 space-y-1">
                 <div class="flex items-center gap-10">
@@ -114,11 +117,14 @@ watch(stopTimeResetCheck, () => {
                             {{ $t('app.the auto start/break feature will only be activated at a specified time.') }}
                         </p>
                     </div>
-                    <Switch v-model="stopBreakAutomatikActivationCheck" />
+                    <Switch v-model="stopBreakAutomaticActivationCheck" />
                 </div>
 
-                <Select v-model="form.stopBreakAutomaticActivationTime">
-                    <SelectTrigger class="mt-4 ml-auto w-1/2" v-if="stopBreakAutomatikActivationCheck">
+                <Select
+                    v-if="stopBreakAutomaticActivationCheck"
+                    v-model="form.stopBreakAutomaticActivationTime"
+                >
+                    <SelectTrigger class="mt-4 ml-auto w-1/2">
                         <SelectValue :placeholder="$t('app.time')" />
                     </SelectTrigger>
                     <SelectContent>
@@ -133,7 +139,7 @@ watch(stopTimeResetCheck, () => {
                 </Select>
                 <div
                     class="text-muted-foreground ml-auto w-1/2 text-xs italic"
-                    v-if="stopBreakAutomatikActivationCheck && form.stopBreakAutomaticActivationTime"
+                    v-if="stopBreakAutomaticActivationCheck && form.stopBreakAutomaticActivationTime"
                 >
                     {{
                         $t('app.the automatic system is active until :time on the following day.', {

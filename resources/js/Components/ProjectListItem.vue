@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { Button } from '@/Components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/Components/ui/dropdown-menu'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { Project } from '@/types'
 import { Link, router } from '@inertiajs/vue3'
 import {
@@ -16,6 +16,8 @@ import {
     Timer
 } from '@lucide/vue'
 import { computed } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     project: Project
@@ -68,7 +70,7 @@ const amountOpen = computed(() => calcAmount(false))
                         <span class="font-medium">
                             {{
                                 props.project.work_time > 59
-                                    ? secToFormat(props.project.work_time, false, true, true)
+                                    ? formatSeconds(props.project.work_time, { noLeadingZero: true })
                                     : props.project.work_time
                             }}
                         </span>
@@ -192,7 +194,7 @@ const amountOpen = computed(() => calcAmount(false))
                             <bdi>
                                 {{
                                     (props.project.work_time ?? 0) > 59
-                                        ? secToFormat(props.project.work_time ?? 0, false, true, true)
+                                        ? formatSeconds(props.project.work_time ?? 0, { noLeadingZero: true })
                                         : (props.project.work_time ?? 0).toFixed(0)
                                 }}
                                 {{ (props.project.work_time ?? 0) > 59 ? $t('app.h') : $t('app.s') }}

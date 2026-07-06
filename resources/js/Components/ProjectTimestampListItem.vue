@@ -2,12 +2,15 @@
 import { Button } from '@/Components/ui/button'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/Components/ui/hover-card'
 import { Switch } from '@/Components/ui/switch'
-import { getCurrencySymbol, secToFormat } from '@/lib/utils'
+import { getCurrencySymbol } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { Project, Timestamp } from '@/types'
 import { Link, useForm } from '@inertiajs/vue3'
 import { BriefcaseBusiness, CircleCheckBig, ExternalLink, MoveRight, NotepadText, Timer } from '@lucide/vue'
 import moment from 'moment/min/moment-with-locales'
 import { watch } from 'vue'
+
+const { formatSeconds, formatTimestampTime } = useTimeFormat()
 
 const props = defineProps<{
     project: Project
@@ -58,7 +61,7 @@ watch(() => form.paid, submit)
                 </span>
                 <span class="leading-none font-medium">
                     <bdi>
-                        {{ moment(props.timestamp.started_at.formatted, 'Hmm').format('LT') }}
+                        {{ formatTimestampTime(props.timestamp.started_at.date) }}
                     </bdi>
                 </span>
             </div>
@@ -69,11 +72,7 @@ watch(() => form.paid, submit)
                 </span>
                 <span class="leading-none font-medium">
                     <bdi>
-                        {{
-                            moment((props.timestamp.ended_at ?? props.timestamp.last_ping_at)?.formatted, 'Hmm').format(
-                                'LT'
-                            )
-                        }}
+                        {{ formatTimestampTime((props.timestamp.ended_at ?? props.timestamp.last_ping_at)?.date) }}
                     </bdi>
                 </span>
             </div>
@@ -136,7 +135,7 @@ watch(() => form.paid, submit)
             <span class="font-medium">
                 {{
                     props.timestamp.duration > 59
-                        ? secToFormat(props.timestamp.duration, false, true, true)
+                        ? formatSeconds(props.timestamp.duration, { noLeadingZero: true })
                         : props.timestamp.duration.toFixed(0)
                 }}
             </span>

@@ -1,11 +1,13 @@
 <script lang="ts" setup>
 import { Button } from '@/Components/ui/button'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { Project } from '@/types'
 import { Head, Link, router } from '@inertiajs/vue3'
 import { Coffee, Play, Square, Tally2, X } from '@lucide/vue'
 import { refThrottled, useColorMode } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     workTime: number
@@ -18,8 +20,8 @@ const workSeconds = ref(props.workTime)
 const breakSeconds = ref(props.breakTime)
 let timer: NodeJS.Timeout | undefined
 
-const workTimeFormatted = computed(() => secToFormat(workSeconds.value))
-const breakTimeFormatted = computed(() => secToFormat(breakSeconds.value, true))
+const workTimeFormatted = computed(() => formatSeconds(workSeconds.value, { forcePreciseTime: true }))
+const breakTimeFormatted = computed(() => formatSeconds(breakSeconds.value, { forcePreciseTime: true }))
 
 const tick = () => {
     if (props.currentType === 'work') {

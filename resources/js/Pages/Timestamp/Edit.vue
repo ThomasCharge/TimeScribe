@@ -7,6 +7,7 @@ import { Project, Timestamp } from '@/types'
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { BriefcaseBusiness, Coffee, MoveRight } from '@lucide/vue'
 import moment from 'moment/min/moment-with-locales'
+import { toTimeValue } from '@/lib/dateTime'
 
 const props = defineProps<{
     min_time: string
@@ -17,9 +18,9 @@ const props = defineProps<{
 }>()
 
 const form = useForm({
-    started_at: moment(props.timestamp.started_at.date, 'YYYY-MM-DD HH:mm:ss').format('HH:mm'),
+    started_at: toTimeValue(props.timestamp.started_at.date),
     ended_at: props.timestamp.ended_at
-        ? moment(props.timestamp.ended_at.date, 'YYYY-MM-DD HH:mm:ss').format('HH:mm')
+        ? toTimeValue(props.timestamp.ended_at.date)
         : undefined,
     type: props.timestamp.type,
     description: props.timestamp.description,

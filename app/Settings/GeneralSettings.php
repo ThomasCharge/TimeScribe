@@ -28,6 +28,8 @@ class GeneralSettings extends Settings
 
     public bool $appActivityTracking;
 
+    public bool $usePreciseTime = true;
+
     public bool $wizard_completed;
 
     public string $theme;

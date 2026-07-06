@@ -528,12 +528,11 @@ class TimestampService
             return false;
         }
 
-        $windowStart = $timestamp->started_at->copy()->subSeconds(59);
-        $windowEnd = $timestamp->started_at->copy()->endOfMinute();
-        $withinWindow = $endedAt->greaterThanOrEqualTo($windowStart) && $endedAt->lessThanOrEqualTo($windowEnd);
+        $gapSeconds = $endedAt->diffInSeconds($timestamp->started_at, false);
 
         return $timestamp->id !== $timestampBefore->id
-            && $withinWindow
+            && $gapSeconds >= 0
+            && $gapSeconds <= 59
             && $timestampBefore->type === $timestamp->type
             && $timestampBefore->project_id === $timestamp->project_id
             && $timestampBefore->paid === $timestamp->paid;

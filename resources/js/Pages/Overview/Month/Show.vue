@@ -3,7 +3,7 @@ import TimestampTypeBadge from '@/Components/TimestampTypeBadge.vue'
 import { PageHeader } from '@/Components/ui-custom/page-header'
 import { TimeWheel } from '@/Components/ui-custom/time-wheel'
 import { Button } from '@/Components/ui/button'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { GetTimeProjectDetails } from '@/types'
 import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import { useCssVar } from '@vueuse/core'
@@ -18,6 +18,8 @@ import ptBr from 'apexcharts/dist/locales/pt-br.json'
 import zhCn from 'apexcharts/dist/locales/zh-cn.json'
 import { trans } from 'laravel-vue-i18n'
 import moment from 'moment/min/moment-with-locales'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     date: string
@@ -166,7 +168,7 @@ const data = {
                     cssClass: ''
                 },
                 formatter: (value) => {
-                    return secToFormat(value, true, true, true)
+                    return formatSeconds(value, { noLeadingZero: true })
                 }
             },
             axisBorder: {
@@ -217,11 +219,8 @@ const data = {
             },
             y: {
                 formatter: (value) => {
-                    const time = secToFormat(value, true, true, true)
-                    if (value >= 3600) {
-                        return `${time} ${trans('app.h')}`
-                    }
-                    return `${time} ${trans('app.min')}`
+                    const time = formatSeconds(value, { noLeadingZero: true })
+                    return `${time}`
                 }
             }
         },

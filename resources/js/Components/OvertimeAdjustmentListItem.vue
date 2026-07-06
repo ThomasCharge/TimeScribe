@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { Button } from '@/Components/ui/button'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { OvertimeAdjustment } from '@/types'
 import { router } from '@inertiajs/vue3'
 import { Minus, Pencil, Pin, Plus, Trash } from '@lucide/vue'
 import moment from 'moment/min/moment-with-locales'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     overtimeAdjustment: OvertimeAdjustment
@@ -71,15 +73,7 @@ const destroy = () => {
                     {{ $t('app.hours') }}
                 </span>
                 <span class="leading-none font-medium tabular-nums">
-                    {{
-                        secToFormat(
-                            props.overtimeAdjustment.seconds,
-                            false,
-                            true,
-                            true,
-                            props.overtimeAdjustment.seconds !== 0
-                        )
-                    }}
+                    {{ formatSeconds(props.overtimeAdjustment.seconds, { noLeadingZero: true, withAbs: props.overtimeAdjustment.seconds !== 0 }) }}
                 </span>
             </div>
             <div class="ml-auto flex items-center justify-end">

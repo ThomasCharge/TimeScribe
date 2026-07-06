@@ -46,6 +46,10 @@ class HandleInertiaRequests extends Middleware
             'date' => now()->format('Y-m-d'),
             'recording' => (bool) TimestampService::getCurrentType(),
             'environment' => PHP_OS_FAMILY,
+            'use_precise_time' => $settings->usePreciseTime,
+            'use_precise_time' => isset($settings->usePreciseTime)
+                ? $settings->usePreciseTime
+                : true,
         ];
     }
 }

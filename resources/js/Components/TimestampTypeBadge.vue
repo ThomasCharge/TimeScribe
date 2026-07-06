@@ -7,7 +7,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '@/Components/ui/dropdown-menu'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { GetTimeProjectDetails } from '@/types'
 import { Link } from '@inertiajs/vue3'
 import {
@@ -22,6 +22,8 @@ import {
     TreePalm
 } from '@lucide/vue'
 import { computed } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     type: string
@@ -84,7 +86,7 @@ const badgeDetails = {
 
 const { title: badgeTitle, icon: badgeIcon, color: badgeColor } = badgeDetails[props.type] || badgeDetails.default
 
-const durationLabel = computed(() => secToFormat(props.duration ?? 0, true, true, true))
+const durationLabel = computed(() => formatSeconds(props.duration ?? 0, { noLeadingZero: true }))
 </script>
 
 <template>
@@ -97,7 +99,6 @@ const durationLabel = computed(() => secToFormat(props.duration ?? 0, true, true
                 <div class="text-sm leading-none font-bold tabular-nums" v-if="props.duration !== undefined">
                     <bdi>
                         {{ durationLabel }}
-                        {{ durationLabel.includes(':') ? $t('app.h') : $t('app.min') }}
                     </bdi>
                 </div>
             </div>
@@ -137,12 +138,7 @@ const durationLabel = computed(() => secToFormat(props.duration ?? 0, true, true
                             <component :is="badgeIcon" class="size-4" />
                             <span>
                                 <bdi>
-                                    {{ secToFormat(projectDuration.sum, true, true, true) }}
-                                    {{
-                                        secToFormat(projectDuration.sum, true, true, true).includes(':')
-                                            ? $t('app.h')
-                                            : $t('app.min')
-                                    }}
+                                    {{ formatSeconds(projectDuration.sum, { noLeadingZero: true }) }}
                                 </bdi>
                             </span>
                         </span>

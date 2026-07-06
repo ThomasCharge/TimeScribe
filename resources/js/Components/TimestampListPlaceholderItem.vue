@@ -10,6 +10,9 @@ import {
 import { Timestamp } from '@/types'
 import { Link } from '@inertiajs/vue3'
 import { BetweenHorizontalEnd, BriefcaseBusiness, Coffee, Plus } from '@lucide/vue'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = defineProps<{
     duration?: number
@@ -30,8 +33,7 @@ const props = defineProps<{
     >
         <div v-if="props.duration">
             <bdi>
-                {{ props.duration }}
-                {{ $t('app.minutes') }}
+                {{ formatSeconds(props.duration, { forcePreciseTime: true }) }}
             </bdi>
         </div>
         <Link

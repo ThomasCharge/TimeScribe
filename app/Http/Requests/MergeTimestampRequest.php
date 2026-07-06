@@ -32,21 +32,35 @@ class MergeTimestampRequest extends FormRequest
 
         if ($timestamp instanceof Timestamp) {
             $mergeWindowStart = $timestamp->started_at->copy()->subSeconds(59);
-            $mergeWindowEnd = $timestamp->started_at->copy()->endOfMinute();
+            $mergeWindowEnd = $timestamp->started_at->copy();
+
+            $dayStart = $timestamp->started_at->copy()->startOfDay();
+            $dayEnd = $timestamp->started_at->copy()->endOfDay();
 
             $timestampBeforeRules = [
                 'required',
-                Rule::exists('timestamps', 'id')->where(function ($query) use ($timestamp, $mergeWindowStart, $mergeWindowEnd): void {
-                    $query->where('type', $timestamp->type->value)
-                        ->when(
-                            $timestamp->project_id !== null,
-                            fn ($query) => $query->where('project_id', $timestamp->project_id),
-                            fn ($query) => $query->whereNull('project_id')
-                        )
-                        ->where('paid', $timestamp->paid)
-                        ->whereBetween('ended_at', [$mergeWindowStart, $mergeWindowEnd])
-                        ->where('id', '!=', $timestamp->id);
-                }),
+                Rule::exists('timestamps', 'id')
+                    ->where(function ($query) use (
+                        $timestamp,
+                        $mergeWindowStart,
+                        $mergeWindowEnd,
+                        $dayStart,
+                        $dayEnd
+                    ): void {
+                        $query->where('type', $timestamp->type->value)
+                            ->when(
+                                $timestamp->project_id !== null,
+                                fn ($query) => $query->where(
+                                    'project_id',
+                                    $timestamp->project_id
+                                ),
+                                fn ($query) => $query->whereNull('project_id')
+                            )
+                            ->where('paid', $timestamp->paid)
+                            ->whereBetween('started_at', [$dayStart, $dayEnd])
+                            ->whereBetween('ended_at', [$mergeWindowStart, $mergeWindowEnd])
+                            ->where('id', '!=', $timestamp->id);
+                    }),
             ];
         }
 

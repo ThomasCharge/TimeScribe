@@ -7,9 +7,11 @@ import SheetDialog from '@/Components/dialogs/SheetDialog.vue'
 import ProjectTimestampListItem from '@/Components/ProjectTimestampListItem.vue'
 import { EmptyState } from '@/Components/ui-custom/empty-state'
 import BasicLayout from '@/Layouts/BasicLayout.vue'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { Enum, Project, Timestamp } from '@/types'
 import { BriefcaseBusiness, CircleCheckBig, CircleEqual, CircleSlash, Timer } from '@lucide/vue'
+
+const { formatSeconds } = useTimeFormat()
 
 defineOptions({
     layout: BasicLayout
@@ -218,7 +220,7 @@ const amountOpen = computed(() => calcAmount(false))
                             <bdi>
                                 {{
                                     group.duration > 59
-                                        ? secToFormat(group.duration, false, true, true)
+                                        ? formatSeconds(group.duration, { noLeadingZero: true })
                                         : group.duration.toFixed(0)
                                 }}
                                 {{ group.duration > 59 ? $t('app.h') : $t('app.s') }}

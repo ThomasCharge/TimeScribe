@@ -247,20 +247,26 @@
     $secToTime = static function (mixed $seconds): string {
         if (is_string($seconds)) {
             $trimmedSeconds = trim($seconds);
-            if (preg_match('/^\d+:\d{2}$/', $trimmedSeconds) === 1) {
+
+            if (preg_match('/^\d+:\d{2}:\d{2}$/', $trimmedSeconds) === 1) {
                 return $trimmedSeconds;
+            }
+
+            if (preg_match('/^\d+:\d{2}$/', $trimmedSeconds) === 1) {
+                return $trimmedSeconds.':00';
             }
         }
 
         if (! is_numeric($seconds)) {
-            return '0:00';
+            return '0:00:00';
         }
 
         $totalSeconds = max((int) $seconds, 0);
         $hours = intdiv($totalSeconds, 3600);
         $minutes = intdiv($totalSeconds % 3600, 60);
+        $remainingSeconds = $totalSeconds % 60;
 
-        return sprintf('%d:%02d', $hours, $minutes);
+        return sprintf('%d:%02d:%02d', $hours, $minutes, $remainingSeconds);
     };
 
     if (file_exists($logoPath)) {

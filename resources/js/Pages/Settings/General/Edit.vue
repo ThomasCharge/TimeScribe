@@ -4,7 +4,7 @@ import { Select, SelectContent, SelectItem, SelectSeparator, SelectTrigger, Sele
 import { Switch } from '@/Components/ui/switch'
 import { Enum } from '@/types'
 import { Head, router, useForm } from '@inertiajs/vue3'
-import { AppWindowMac, CalendarMinus, Eye, Globe, KeyRound, Languages, PanelsTopLeft, SunMoon } from '@lucide/vue'
+import { AppWindowMac, CalendarMinus, Eye, Globe, KeyRound, Languages, PanelsTopLeft, SunMoon, Watch } from '@lucide/vue'
 import { useDebounceFn } from '@vueuse/core'
 import { ref, watch } from 'vue'
 
@@ -16,6 +16,7 @@ const props = defineProps<{
     holidayRegions?: Enum
     locale: string
     appActivityTracking?: boolean
+    usePreciseTime?: boolean
     timezones?: string[]
     timezone: string
     defaultOverview: string
@@ -28,6 +29,7 @@ const form = useForm({
     holidayRegion: props.holidayRegion ?? '',
     locale: props.locale,
     appActivityTracking: props.appActivityTracking ?? false,
+    usePreciseTime: props.usePreciseTime ?? true,
     timezone: props.timezone,
     default_overview: props.defaultOverview ?? 'week'
 })
@@ -50,6 +52,7 @@ watch(
         form.showTimerOnUnlock,
         form.holidayRegion,
         form.appActivityTracking,
+        form.usePreciseTime,
         form.timezone,
         form.default_overview
     ],
@@ -220,6 +223,19 @@ watch(holidayCheck, () => {
                 </p>
             </div>
             <Switch class="self-center" v-model="form.appActivityTracking" />
+        </div>
+
+        <div class="flex items-start space-x-4 py-4">
+            <Watch />
+            <div class="flex-1 space-y-1">
+                <p class="text-sm leading-none font-medium">
+                    {{ $t('app.use precise time') }}
+                </p>
+                <p class="text-muted-foreground text-sm">
+                    {{ $t('app.track, display, and edit time entries down to the second.') }}
+                </p>
+            </div>
+            <Switch class="self-center" v-model="form.usePreciseTime" />
         </div>
 
         <div class="flex items-start space-x-4 py-4">

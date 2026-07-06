@@ -7,6 +7,7 @@ namespace App\Services\Import;
 use App\Models\Project;
 use App\Models\Timestamp;
 use App\Settings\ProjectSettings;
+use App\Support\DateTimeFormat;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
@@ -109,8 +110,8 @@ class ClockifyImportService
 
             $timestamp = [
                 'type' => 'work',
-                'started_at' => $startAt->format('Y-m-d H:i:s'),
-                'ended_at' => $endAt->format('Y-m-d H:i:s'),
+                'started_at' => $startAt->format(DateTimeFormat::DATE_TIME_VALUE),
+                'ended_at' => $endAt->format(DateTimeFormat::DATE_TIME_VALUE),
                 'source' => 'Clockify',
             ];
 
@@ -148,7 +149,7 @@ class ClockifyImportService
 
             $currentStartDate = Date::parse($timestamp['started_at']);
             if ($currentStartDate->lessThan($previousEndDate)) {
-                $timestamp['started_at'] = $previousEndDate->format('Y-m-d H:i:s');
+                $timestamp['started_at'] = $previousEndDate->format(DateTimeFormat::DATE_TIME_VALUE);
             }
 
             $previousEndDate = Date::parse($timestamp['ended_at']);
@@ -168,8 +169,8 @@ class ClockifyImportService
                 return $timestamp;
             }
             $copyTimestamp = $timestamp;
-            $timestamp['ended_at'] = $startDate->endOfDay()->format('Y-m-d H:i:s');
-            $copyTimestamp['started_at'] = $endDate->startOfDay()->format('Y-m-d H:i:s');
+            $timestamp['ended_at'] = $startDate->endOfDay()->format(DateTimeFormat::DATE_TIME_VALUE);
+            $copyTimestamp['started_at'] = $endDate->startOfDay()->format(DateTimeFormat::DATE_TIME_VALUE);
             $addTimestamps[] = $copyTimestamp;
 
             return $timestamp;
@@ -191,7 +192,7 @@ class ClockifyImportService
             ->get();
 
         foreach ($databaseTimestamps as $timestamp) {
-            $existingDates[] = $timestamp->started_at->format('Y-m-d H:i:s').' - '.$timestamp->ended_at->format('Y-m-d H:i:s');
+            $existingDates[] = $timestamp->started_at->format(DateTimeFormat::DATE_TIME_VALUE).' - '.$timestamp->ended_at->format(DateTimeFormat::DATE_TIME_VALUE);
         }
 
         $this->timestamps = $this->timestamps->reject(fn ($timestamp): bool => in_array($timestamp['started_at'].' - '.$timestamp['ended_at'], $existingDates))->values();
@@ -222,8 +223,8 @@ class ClockifyImportService
                 if ($startDate->lessThanOrEqualTo($dbTimestamp->started_at) && $endDate->greaterThanOrEqualTo($dbTimestamp->ended_at)) {
                     Log::info('ImportService: Timestamp collision detected -> splitting timestamp');
                     $copyTimestamp = $timestamp;
-                    $timestamp['ended_at'] = $dbTimestamp->started_at->format('Y-m-d H:i:s');
-                    $copyTimestamp['started_at'] = $dbTimestamp->ended_at->format('Y-m-d H:i:s');
+                    $timestamp['ended_at'] = $dbTimestamp->started_at->format(DateTimeFormat::DATE_TIME_VALUE);
+                    $copyTimestamp['started_at'] = $dbTimestamp->ended_at->format(DateTimeFormat::DATE_TIME_VALUE);
                     $addTimestamps[] = $copyTimestamp;
 
                     return $timestamp;
@@ -231,14 +232,14 @@ class ClockifyImportService
 
                 if ($startDate->lessThan($dbTimestamp->started_at) && $endDate->lessThanOrEqualTo($dbTimestamp->ended_at)) {
                     Log::info('ImportService: Timestamp collision detected -> ended_at modified');
-                    $timestamp['ended_at'] = $dbTimestamp->started_at->format('Y-m-d H:i:s');
+                    $timestamp['ended_at'] = $dbTimestamp->started_at->format(DateTimeFormat::DATE_TIME_VALUE);
 
                     return $timestamp;
                 }
 
                 if ($startDate->greaterThan($dbTimestamp->started_at) && $endDate->greaterThanOrEqualTo($dbTimestamp->ended_at)) {
                     Log::info('ImportService: Timestamp collision detected -> started_at modified');
-                    $timestamp['started_at'] = $dbTimestamp->ended_at->format('Y-m-d H:i:s');
+                    $timestamp['started_at'] = $dbTimestamp->ended_at->format(DateTimeFormat::DATE_TIME_VALUE);
 
                     return $timestamp;
                 }

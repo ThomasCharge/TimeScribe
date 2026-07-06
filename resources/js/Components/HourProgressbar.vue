@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/Components/ui/tooltip'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { BriefcaseBusiness, ChevronsLeftRightEllipsis, ClockArrowUp, Coffee } from '@lucide/vue'
 import { computed } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 const props = withDefaults(
     defineProps<{
@@ -59,14 +61,7 @@ const percentages = computed(() => {
                             {{ $t('app.work hours') }}
                         </div>
                         <div class="font-bold">
-                            {{
-                                secToFormat(
-                                    props.workTime > props.planTime ? props.planTime : props.workTime,
-                                    false,
-                                    true,
-                                    true
-                                )
-                            }}
+                            {{ formatSeconds(props.workTime > props.planTime ? props.planTime : props.workTime, { noLeadingZero: true }) }}
                             {{ $t('app.h') }}
                         </div>
                     </div>
@@ -87,7 +82,7 @@ const percentages = computed(() => {
                             {{ $t('app.overtime') }}
                         </div>
                         <div class="font-bold">
-                            {{ secToFormat(props.workTime - props.planTime, false, true, true) }}
+                            {{ formatSeconds(props.workTime - props.planTime, { noLeadingZero: true }) }}
                             {{ $t('app.h') }}
                         </div>
                     </div>
@@ -108,7 +103,7 @@ const percentages = computed(() => {
                             {{ $t('app.break time') }}
                         </div>
                         <div class="font-bold">
-                            {{ secToFormat(props.breakTime, false, true, true) }}
+                            {{ formatSeconds(props.breakTime, { noLeadingZero: true }) }}
                             {{ $t('app.h') }}
                         </div>
                     </div>
@@ -132,7 +127,7 @@ const percentages = computed(() => {
                             {{ $t('app.idle time') }}
                         </div>
                         <div class="font-bold">
-                            {{ secToFormat(props.noWorkTime, false, true, true) }}
+                            {{ formatSeconds(props.noWorkTime, { noLeadingZero: true }) }}
                             {{ $t('app.h') }}
                         </div>
                     </div>

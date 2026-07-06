@@ -12,6 +12,7 @@ use App\Services\HolidayService;
 use App\Services\LocaleService;
 use App\Services\TimestampService;
 use App\Settings\ExportSettings;
+use App\Support\DateTimeFormat;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Date;
@@ -37,7 +38,7 @@ class ExportService
     {
         $exportFileName = 'TimeScribe-Export';
         if ($this->startDate && $this->endDate) {
-            $exportFileName .= ' — '.$this->startDate->format('Y-m-d').' - '.$this->endDate->format('Y-m-d');
+            $exportFileName .= ' — '.$this->startDate->format(DateTimeFormat::DATE_VALUE).' - '.$this->endDate->format(DateTimeFormat::DATE_VALUE);
         }
         if ($this->projectIds) {
             $projectNames = Project::withTrashed()->whereIn('id', $this->projectIds)->get('name')->map(fn ($projectName) => Str::slug($projectName['name']))->join(' # ');
@@ -153,20 +154,32 @@ class ExportService
         $sickTime = $exportData->where('type', 'sick')->sum('duration');
         $vacationTime = $exportData->where('type', 'vacation')->sum('duration');
         $holidayTime = $exportData->where('type', 'holiday')->sum('duration');
-
-        $totalHours = floor($workTime / 3600);
-        $totalMinutes = floor(($workTime % 3600) / 60);
-        $totalFormatted = sprintf('%d:%02d', $totalHours, $totalMinutes);
-
+    
+        $totalSeconds = max((int) floor($workTime), 0);
+        $totalHours = floor($totalSeconds / 3600);
+        $totalMinutes = floor(($totalSeconds % 3600) / 60);
+        $totalSecondsRemainder = $totalSeconds % 60;
+    
+        $totalFormatted = sprintf(
+            '%d:%02d:%02d',
+            $totalHours,
+            $totalMinutes,
+            $totalSecondsRemainder
+        );
+    
         $exportSettings = resolve(ExportSettings::class);
-
+    
         $projects = [];
         if ($this->projectIds) {
-            $projects = Project::withTrashed()->whereIn('id', $this->projectIds)->get(['name', 'color']);
+            $projects = Project::withTrashed()
+                ->whereIn('id', $this->projectIds)
+                ->get(['name', 'color']);
         }
-
+    
         Pdf::view('pdf.export', [
-            'timestamps' => $exportData->map(fn (Timestamp $timestamp): array => $this->timestampToRowArray($timestamp, true))->all(),
+            'timestamps' => $exportData
+                ->map(fn (Timestamp $timestamp): array => $this->timestampToRowArray($timestamp, true))
+                ->all(),
             'columns' => $this->headerArray(),
             'startDate' => $this->startDate?->isoFormat('L'),
             'endDate' => $this->endDate?->isoFormat('L'),
@@ -196,7 +209,7 @@ class ExportService
             'metadata' => $timestamp['project']?->metadata ?? '',
             'project' => $timestamp['project'] ? implode(' ', [$timestamp['project']->icon, $timestamp['project']->name]) : '',
             'import_source' => $timestamp['source'] ?? '',
-            'duration' => $timestamp['ended_at'] ? gmdate('H:i:s', (int) $timestamp['started_at']->diffInSeconds($timestamp['ended_at'])) : '',
+            'duration' => $timestamp['ended_at'] ? gmdate(DateTimeFormat::TIME_VALUE, (int) $timestamp['started_at']->diffInSeconds($timestamp['ended_at'])) : '',
             'hourly_rate' => $timestamp['project']?->hourly_rate ? number_format($timestamp['project']->hourly_rate, 2) : '',
             'billable_amount' => $timestamp['duration'] && $timestamp['project']?->hourly_rate ? number_format($timestamp['duration'] / 60 * $timestamp['project']?->hourly_rate / 60, 2) : '',
             'currency' => $timestamp['project']?->hourly_rate ? $timestamp['project']?->currency ?? '' : '',
@@ -210,9 +223,9 @@ class ExportService
             $all['end_time'] = $timestamp['ended_at'] ? $timestamp['ended_at']->isoFormat('LTS') : '';
         } else {
             $all['start_date'] = $timestamp['started_at']->format('d/m/Y');
-            $all['start_time'] = $timestamp['started_at']->format('H:i:s');
+            $all['start_time'] = $timestamp['started_at']->format(DateTimeFormat::TIME_VALUE);
             $all['end_date'] = $timestamp['ended_at'] ? $timestamp['ended_at']->format('d/m/Y') : '';
-            $all['end_time'] = $timestamp['ended_at'] ? $timestamp['ended_at']->format('H:i:s') : '';
+            $all['end_time'] = $timestamp['ended_at'] ? $timestamp['ended_at']->format(DateTimeFormat::TIME_VALUE) : '';
         }
 
         return collect($this->headerArray())->mapWithKeys(fn ($value, $key): array => [$key => $all[$key] ?? ''])->toArray();

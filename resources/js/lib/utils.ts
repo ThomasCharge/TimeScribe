@@ -2,6 +2,50 @@ import { type ClassValue, clsx } from 'clsx'
 import moment from 'moment/min/moment-with-locales'
 import { twMerge } from 'tailwind-merge'
 
+
+const DEBUG_TIME_FORMAT = true
+
+const timeFormatDebugLines: string[] = []
+
+function debugTimeFormat(label: string, data: Record<string, unknown>) {
+    if (!DEBUG_TIME_FORMAT || typeof document === 'undefined') {
+        return
+    }
+
+    const line = `${label}: ${JSON.stringify(data)}`
+    timeFormatDebugLines.unshift(line)
+
+    if (timeFormatDebugLines.length > 25) {
+        timeFormatDebugLines.pop()
+    }
+
+    let element = document.getElementById('__time_format_debug')
+
+    if (!element) {
+        element = document.createElement('pre')
+        element.id = '__time_format_debug'
+        element.style.position = 'fixed'
+        element.style.right = '8px'
+        element.style.bottom = '8px'
+        element.style.zIndex = '999999'
+        element.style.maxWidth = '700px'
+        element.style.maxHeight = '400px'
+        element.style.overflow = 'auto'
+        element.style.padding = '8px'
+        element.style.fontSize = '11px'
+        element.style.background = 'rgba(0, 0, 0, 0.85)'
+        element.style.color = 'white'
+        element.style.borderRadius = '6px'
+        element.style.whiteSpace = 'pre-wrap'
+
+        document.body.appendChild(element)
+    }
+
+    element.textContent = timeFormatDebugLines.join('\n')
+}
+
+
+
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs))
 }
@@ -50,7 +94,7 @@ export function secToFormat(
     if (withAbs || !positive) {
         output = `${positive ? '+' : '-'}${output}`
     }
-
+    //debugTimeFormat('secToFormat', {inputSeconds: seconds, hours, minutes, secs, withoutHours, withoutSeconds, noLeadingZero, withAbs, output,})
     return output
 }
 

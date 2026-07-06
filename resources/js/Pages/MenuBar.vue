@@ -2,12 +2,14 @@
 import { EmptyState } from '@/Components/ui-custom/empty-state'
 import { Button } from '@/Components/ui/button'
 import BasicLayout from '@/Layouts/BasicLayout.vue'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import { ActivityHistory, Project } from '@/types'
 import { Head, Link, router, usePoll } from '@inertiajs/vue3'
 import { ChartColumnBig, Coffee, Cog, PictureInPicture, Play, Plus, Sparkles, Square, Tag, X } from '@lucide/vue'
 import { useColorMode } from '@vueuse/core'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 defineOptions({
     layout: BasicLayout
@@ -29,8 +31,8 @@ let timer: NodeJS.Timeout
 const workSeconds = ref(props.workTime)
 const breakSeconds = ref(props.breakTime)
 
-const workTimeFormatted = computed(() => secToFormat(workSeconds.value))
-const breakTimeFormatted = computed(() => secToFormat(breakSeconds.value, true))
+const workTimeFormatted = computed(() => formatSeconds(workSeconds.value, { forcePreciseTime: true }))
+const breakTimeFormatted = computed(() => formatSeconds(breakSeconds.value, { forcePreciseTime: true }))
 const openProjectList = ref(false)
 const showProject = ref(!!props.currentProject)
 

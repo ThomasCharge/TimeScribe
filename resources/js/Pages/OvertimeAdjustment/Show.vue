@@ -7,11 +7,13 @@ import SheetDialog from '@/Components/dialogs/SheetDialog.vue'
 import OvertimeAdjustmentListItem from '@/Components/OvertimeAdjustmentListItem.vue'
 import { EmptyState } from '@/Components/ui-custom/empty-state'
 import BasicLayout from '@/Layouts/BasicLayout.vue'
-import { secToFormat } from '@/lib/utils'
+import { useTimeFormat } from '@/Composables/useTimeFormat'
 import Edit from '@/Pages/OvertimeAdjustment/Edit.vue'
 import { OvertimeAdjustment, WeekBalance, WeekdayObject } from '@/types'
 import { ArrowRight, ClipboardClock, Clock, ClockArrowDown, ClockArrowUp, Diff, Dot, Equal, Plus } from '@lucide/vue'
 import { computed, ref } from 'vue'
+
+const { formatSeconds } = useTimeFormat()
 
 defineOptions({
     layout: BasicLayout
@@ -159,7 +161,7 @@ const closeEditModal = () => {
                                         class="flex items-center gap-2 text-sm text-nowrap tabular-nums"
                                     >
                                         {{ weekBalance.balance > 0 ? '+' : ''
-                                        }}{{ secToFormat(weekBalance.balance, false, true, true) }}
+                                        }}{{ formatSeconds(weekBalance.balance, { noLeadingZero: true }) }}
                                         {{ $t('app.h') }}
                                         <ClockArrowUp class="size-4" v-if="weekBalance.balance > 0" />
                                         <Clock class="size-4" v-if="weekBalance.balance === 0" />
@@ -173,7 +175,7 @@ const closeEditModal = () => {
                                     <div
                                         class="flex items-center justify-end gap-2 text-right text-sm text-lime-500 tabular-nums"
                                     >
-                                        {{ secToFormat(weekBalance.end_balance, false, true, true) }}
+                                        {{ formatSeconds(weekBalance.end_balance, { noLeadingZero: true }) }}
                                         {{ $t('app.h') }}
                                         <Diff class="size-4" />
                                     </div>
@@ -216,7 +218,7 @@ const closeEditModal = () => {
                         <span class="w-full truncate text-center font-medium">{{ $t('app.week start') }}</span>
                         <div class="bg-background border-muted rounded border px-2 py-1">
                             <div class="flex items-center gap-2 text-sm text-lime-500 tabular-nums">
-                                {{ secToFormat(currentWeekBalance.start_balance, false, true, true) }}
+                                {{ formatSeconds(currentWeekBalance.start_balance, { noLeadingZero: true}) }}
                                 {{ $t('app.h') }}
                                 <Diff class="size-4" />
                             </div>
@@ -234,7 +236,7 @@ const closeEditModal = () => {
                                 }"
                                 class="flex items-center gap-2 text-sm tabular-nums"
                             >
-                                {{ secToFormat(currentWeekBalance.balance, false, true, true) }}
+                                {{ formatSeconds(currentWeekBalance.balance, { noLeadingZero: true}) }}
                                 {{ $t('app.h') }}
                                 <ClockArrowUp class="size-4" v-if="currentWeekBalance.balance > 0" />
                                 <Clock class="size-4" v-if="currentWeekBalance.balance === 0" />
@@ -249,7 +251,7 @@ const closeEditModal = () => {
                         </span>
                         <div class="bg-background border-muted rounded border px-2 py-1">
                             <div class="flex items-center gap-2 text-sm text-lime-500 tabular-nums">
-                                {{ secToFormat(currentWeekBalance.end_balance, false, true, true) }}
+                                {{ formatSeconds(currentWeekBalance.end_balance, { noLeadingZero: true }) }}
                                 {{ $t('app.h') }}
                                 <Diff class="size-4" />
                             </div>
@@ -289,7 +291,7 @@ const closeEditModal = () => {
                             }"
                             class="border-t py-1 text-xs"
                         >
-                            {{ secToFormat(weekday.workTime - (weekday.plan ?? 0) * 3600, false, true, true) }}
+                            {{ formatSeconds(weekday.workTime - (weekday.plan ?? 0) * 3600, { noLeadingZero: true }) }}
                         </div>
                     </div>
                 </div>
