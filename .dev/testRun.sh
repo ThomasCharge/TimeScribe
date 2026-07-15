@@ -1,0 +1,1 @@
+php artisan tinker --execute='$path = "/Users/thomascharge/Documents/timescribe/archive/TimeScribe-Export — 2026-07-01 - 2026-07-08.csv"; dump((new App\Services\Import\TimeScribeImportService($path))->import());'

@@ -1,0 +1,16 @@
+# Optional: confirm the CSV still parses without writing anything
+.dev/testRun.sh
+
+# Test mode 1: existing timestamps win
+.dev/testOverlapSetup.sh
+.dev/testRunKeepExisting.sh
+.dev/testInspectOverlap.sh
+
+# Test mode 2: imported timestamps win
+# testOverlapSetup.sh clears the previous test data first
+.dev/testOverlapSetup.sh
+.dev/testRunReplaceExisting.sh
+.dev/testInspectOverlap.sh
+
+# Optional final cleanup
+.dev/testClear.sh

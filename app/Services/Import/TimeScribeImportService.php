@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\DB;
 
 class TimeScribeImportService
 {
+    public const OVERLAP_KEEP_EXISTING = 'keep_existing';
+    public const OVERLAP_REPLACE_EXISTING = 'replace_existing';
+
     private const REQUIRED_COLUMNS = [
         'Type',
         'Start Date',
@@ -52,6 +55,11 @@ class TimeScribeImportService
         'warnings' => [],
         'unsupported_columns' => [],
         'preview' => [],
+        'overlapping_rows_found' => 0,
+        'imported_rows_split' => 0,
+        'existing_rows_split' => 0,
+        'existing_rows_trimmed' => 0,
+        'existing_rows_deleted' => 0,
     ];
 
     private array $projectIdsByName = [];
@@ -86,7 +94,10 @@ class TimeScribeImportService
         return $this->summary;
     }
 
-    public function import(bool $dryRun = true): array
+    public function import(
+        bool $dryRun = true,
+        string $overlapMode = self::OVERLAP_KEEP_EXISTING
+    ): array
     {
         $validationSummary = $this->validate();
 
@@ -104,7 +115,12 @@ class TimeScribeImportService
 
         $headers = fgetcsv($csvFile, escape: '\\');
 
-        $importRows = function () use ($csvFile, $headers, $dryRun): void {
+        $importRows = function () use (
+            $csvFile,
+            $headers,
+            $dryRun,
+            $overlapMode
+        ): void {
             while (($row = fgetcsv($csvFile, escape: '\\')) !== false) {
                 $this->summary['rows_read']++;
 
@@ -142,7 +158,7 @@ class TimeScribeImportService
                 }
 
                 if (! $dryRun) {
-                    $this->saveTimestamp($timestamp);
+                    $this->saveTimestampWithOverlapMode($timestamp, $overlapMode);
                 }
             }
         };
@@ -445,5 +461,170 @@ class TimeScribeImportService
         $value = strtolower(trim((string) $value));
 
         return in_array($value, ['yes', 'true', '1'], true);
+    }
+
+    private function saveTimestampWithOverlapMode(array $timestamp, string $overlapMode): void
+    {
+        if ($overlapMode === self::OVERLAP_REPLACE_EXISTING) {
+            $this->trimExistingRowsAroundImportedRow($timestamp);
+            $this->saveTimestamp($timestamp);
+
+            return;
+        }
+
+        $segments = $this->getImportedSegmentsThatDoNotOverlapExistingRows($timestamp);
+
+        if ($segments === []) {
+            $this->summary['timestamps_skipped']++;
+
+            return;
+        }
+
+        foreach ($segments as $segment) {
+            $this->saveTimestamp($segment);
+        }
+    }
+
+    private function getOverlappingExistingRows(array $timestamp)
+    {
+        return Timestamp::query()
+            ->whereNotNull('ended_at')
+            ->where('started_at', '<', $timestamp['ended_at'])
+            ->where('ended_at', '>', $timestamp['started_at'])
+            ->orderBy('started_at')
+            ->get();
+    }
+
+    private function getImportedSegmentsThatDoNotOverlapExistingRows(array $timestamp): array
+    {
+        $segments = [$timestamp];
+        $existingRows = $this->getOverlappingExistingRows($timestamp);
+
+        if ($existingRows->isEmpty()) {
+            return $segments;
+        }
+
+        $this->summary['overlapping_rows_found'] += $existingRows->count();
+
+        foreach ($existingRows as $existingRow) {
+            $newSegments = [];
+
+            foreach ($segments as $segment) {
+                $segmentStart = Date::parse($segment['started_at']);
+                $segmentEnd = Date::parse($segment['ended_at']);
+                $existingStart = $existingRow->started_at;
+                $existingEnd = $existingRow->ended_at;
+
+                if (
+                    $existingEnd->lessThanOrEqualTo($segmentStart) ||
+                    $existingStart->greaterThanOrEqualTo($segmentEnd)
+                ) {
+                    $newSegments[] = $segment;
+
+                    continue;
+                }
+
+                if ($existingStart->greaterThan($segmentStart)) {
+                    $beforeSegment = $segment;
+                    $beforeSegment['ended_at'] = $existingStart
+                        ->format(DateTimeFormat::DATE_TIME_VALUE);
+
+                    $newSegments[] = $beforeSegment;
+                }
+
+                if ($existingEnd->lessThan($segmentEnd)) {
+                    $afterSegment = $segment;
+                    $afterSegment['started_at'] = $existingEnd
+                        ->format(DateTimeFormat::DATE_TIME_VALUE);
+
+                    $newSegments[] = $afterSegment;
+                }
+
+                $this->summary['imported_rows_split']++;
+            }
+
+            $segments = $newSegments;
+        }
+
+        return array_values(array_filter($segments, function (array $segment): bool {
+            return $segment['started_at'] < $segment['ended_at'];
+        }));
+    }
+
+    private function trimExistingRowsAroundImportedRow(array $timestamp): void
+    {
+        $existingRows = $this->getOverlappingExistingRows($timestamp);
+
+        if ($existingRows->isEmpty()) {
+            return;
+        }
+
+        $this->summary['overlapping_rows_found'] += $existingRows->count();
+
+        $importStart = Date::parse($timestamp['started_at']);
+        $importEnd = Date::parse($timestamp['ended_at']);
+
+        foreach ($existingRows as $existingRow) {
+            $existingStart = $existingRow->started_at;
+            $existingEnd = $existingRow->ended_at;
+
+            if (
+                $existingStart->lessThan($importStart) &&
+                $existingEnd->greaterThan($importEnd)
+            ) {
+                $copy = $existingRow->replicate();
+                $copy->started_at = $importEnd;
+                $copy->ended_at = $existingEnd;
+                $copy->last_ping_at = $existingEnd;
+                $copy->created_at = $importEnd;
+                $copy->updated_at = $existingEnd;
+                $copy->save();
+
+                $existingRow->ended_at = $importStart;
+                $existingRow->last_ping_at = $importStart;
+                $existingRow->updated_at = $importStart;
+                $existingRow->save();
+
+                $this->summary['existing_rows_split']++;
+
+                continue;
+            }
+
+            if (
+                $existingStart->greaterThanOrEqualTo($importStart) &&
+                $existingEnd->lessThanOrEqualTo($importEnd)
+            ) {
+                $existingRow->delete();
+
+                $this->summary['existing_rows_deleted']++;
+
+                continue;
+            }
+
+            if (
+                $existingStart->lessThan($importStart) &&
+                $existingEnd->greaterThan($importStart)
+            ) {
+                $existingRow->ended_at = $importStart;
+                $existingRow->last_ping_at = $importStart;
+                $existingRow->updated_at = $importStart;
+                $existingRow->save();
+
+                $this->summary['existing_rows_trimmed']++;
+
+                continue;
+            }
+
+            if (
+                $existingStart->lessThan($importEnd) &&
+                $existingEnd->greaterThan($importEnd)
+            ) {
+                $existingRow->started_at = $importEnd;
+                $existingRow->created_at = $importEnd;
+                $existingRow->save();
+
+                $this->summary['existing_rows_trimmed']++;
+            }
+        }
     }
 }
