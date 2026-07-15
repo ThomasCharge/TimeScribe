@@ -9,6 +9,7 @@ use App\Http\Controllers\Export\ExportController;
 use App\Http\Controllers\FlyTimerController;
 use App\Http\Controllers\HolidayRuleController;
 use App\Http\Controllers\Import\ClockifyController;
+use App\Http\Controllers\Import\TimeScribeController;
 use App\Http\Controllers\ImportExportController;
 use App\Http\Controllers\MenubarController;
 use App\Http\Controllers\OvertimeAdjustment\OvertimeAdjustmentController;
@@ -124,6 +125,7 @@ Route::name('updater.')->prefix('updater')->group(function (): void {
 Route::resource('import-export', ImportExportController::class);
 Route::name('import.')->prefix('import')->group(function (): void {
     Route::resource('clockify', ClockifyController::class)->only(['create', 'store']);
+    Route::resource('timescribe', TimeScribeController::class)->only(['create', 'store']);
 });
 Route::singleton('export', ExportController::class)->creatable()->only(['create', 'store']);
 

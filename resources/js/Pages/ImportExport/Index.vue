@@ -5,7 +5,7 @@ import Xls from '@/Components/icons/Xls.vue'
 import { PageHeader } from '@/Components/ui-custom/page-header'
 import { Button } from '@/Components/ui/button'
 import { Head, Link } from '@inertiajs/vue3'
-import { FolderInput, FolderOutput } from '@lucide/vue'
+import { Clock, FolderInput, FolderOutput } from '@lucide/vue'
 </script>
 
 <template>
@@ -43,6 +43,10 @@ import { FolderInput, FolderOutput } from '@lucide/vue'
                         />
                     </svg>
                     Clockify
+                </Button>
+                <Button :as="Link" :href="route('import.timescribe.create')" variant="outline">
+                    <Clock />
+                    TimeScribe
                 </Button>
             </div>
         </div>
