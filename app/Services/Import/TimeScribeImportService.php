@@ -7,6 +7,7 @@ namespace App\Services\Import;
 use App\Models\Project;
 use App\Models\Timestamp;
 use App\Support\DateTimeFormat;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 
@@ -46,6 +47,7 @@ class TimeScribeImportService
         'timestamps_created' => 0,
         'timestamps_skipped' => 0,
         'timestamps_updated' => 0,
+        'timestamps_merged' => 0,
         'duplicate_rows_skipped' => 0,
         'projects_detected' => [],
         'project_parse_warnings' => [],
@@ -61,6 +63,8 @@ class TimeScribeImportService
         'existing_rows_trimmed' => 0,
         'existing_rows_deleted' => 0,
     ];
+
+    private array $mergeSeedIds = [];
 
     private array $projectIdsByName = [];
     private array $seenFingerprints = [];
@@ -99,6 +103,7 @@ class TimeScribeImportService
         string $overlapMode = self::OVERLAP_KEEP_EXISTING
     ): array
     {
+        $this->mergeSeedIds = [];
         $validationSummary = $this->validate();
 
         if ($validationSummary['errors']) {
@@ -164,6 +169,9 @@ class TimeScribeImportService
                 if (! $dryRun) {
                     $this->saveTimestampWithOverlapMode($timestamp, $overlapMode);
                 }
+            }
+            if (! $dryRun) {
+                $this->mergeAdjacentImportedTimestamps();
             }
         };
 
@@ -362,7 +370,7 @@ class TimeScribeImportService
     {
         $projectId = $this->resolveProjectId($timestamp);
 
-        Timestamp::create([
+        $createdTimestamp = Timestamp::create([
             'type' => $timestamp['type'],
             'description' => $timestamp['description'],
             'source' => $timestamp['source'],
@@ -375,7 +383,141 @@ class TimeScribeImportService
             'updated_at' => $timestamp['ended_at'],
         ]);
 
+        $this->mergeSeedIds[$createdTimestamp->id] = true;
+
         $this->summary['timestamps_created']++;
+    }
+
+    private function mergeAdjacentImportedTimestamps(): void
+    {
+        $seedIds = array_keys($this->mergeSeedIds);
+
+        foreach ($seedIds as $seedId) {
+            $this->mergeTimestampChain((int) $seedId);
+        }
+    }
+
+    private function mergeTimestampChain(int $seedId): void
+    {
+        $timestamp = Timestamp::query()->find($seedId);
+
+        if (
+            ! $timestamp instanceof Timestamp ||
+            $timestamp->ended_at === null
+        ) {
+            return;
+        }
+
+        while (true) {
+            $previous = $this->findMergeablePrevious($timestamp);
+
+            if (! $previous instanceof Timestamp) {
+                break;
+            }
+
+            $previous->ended_at = $timestamp->ended_at;
+            $previous->last_ping_at = $timestamp->last_ping_at
+                ?? $timestamp->ended_at;
+            $previous->updated_at = $timestamp->ended_at;
+            $previous->save();
+
+            $timestamp->delete();
+
+            $this->summary['timestamps_merged']++;
+
+            $timestamp = $previous;
+        }
+
+        while (true) {
+            $next = $this->findMergeableNext($timestamp);
+
+            if (! $next instanceof Timestamp) {
+                break;
+            }
+
+            $timestamp->ended_at = $next->ended_at;
+            $timestamp->last_ping_at = $next->last_ping_at
+                ?? $next->ended_at;
+            $timestamp->updated_at = $next->ended_at;
+            $timestamp->save();
+
+            $next->delete();
+
+            $this->summary['timestamps_merged']++;
+        }
+    }
+
+    private function findMergeablePrevious(
+        Timestamp $timestamp
+    ): ?Timestamp {
+        return $this->mergeSignatureQuery($timestamp)
+            ->where('id', '!=', $timestamp->id)
+            ->where('ended_at', $timestamp->started_at)
+            ->orderByDesc('started_at')
+            ->first();
+    }
+
+    private function findMergeableNext(
+        Timestamp $timestamp
+    ): ?Timestamp {
+        if ($timestamp->ended_at === null) {
+            return null;
+        }
+
+        return $this->mergeSignatureQuery($timestamp)
+            ->where('id', '!=', $timestamp->id)
+            ->where('started_at', $timestamp->ended_at)
+            ->orderBy('started_at')
+            ->first();
+    }
+
+    private function mergeSignatureQuery(
+        Timestamp $timestamp
+    ): Builder {
+        $query = Timestamp::query()
+            ->where(
+                'type',
+                $timestamp->getRawOriginal('type')
+            )
+            ->where(
+                'paid',
+                $timestamp->getRawOriginal('paid')
+            )
+            ->whereNotNull('ended_at');
+
+        $this->addNullableMergeCondition(
+            $query,
+            'project_id',
+            $timestamp->project_id
+        );
+
+        $this->addNullableMergeCondition(
+            $query,
+            'description',
+            $timestamp->description
+        );
+
+        $this->addNullableMergeCondition(
+            $query,
+            'source',
+            $timestamp->getRawOriginal('source')
+        );
+
+        return $query;
+    }
+
+    private function addNullableMergeCondition(
+        Builder $query,
+        string $column,
+        mixed $value
+    ): void {
+        if ($value === null) {
+            $query->whereNull($column);
+
+            return;
+        }
+
+        $query->where($column, $value);
     }
 
     private function resolveProjectId(array $timestamp): ?int
