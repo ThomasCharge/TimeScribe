@@ -122,6 +122,10 @@ class TimeScribeImportService
             $overlapMode
         ): void {
             while (($row = fgetcsv($csvFile, escape: '\\')) !== false) {
+                if ($this->isEmptyRow($row)) {
+                    continue;
+                }
+
                 $this->summary['rows_read']++;
 
                 $rowData = $this->rowToData($headers, $row);
@@ -626,5 +630,16 @@ class TimeScribeImportService
                 $this->summary['existing_rows_trimmed']++;
             }
         }
+    }
+
+    private function isEmptyRow(array $row): bool
+    {
+        foreach ($row as $value) {
+            if (trim((string) $value) !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

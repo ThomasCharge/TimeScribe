@@ -2,13 +2,15 @@
 import SheetDialog from '@/Components/dialogs/SheetDialog.vue'
 import { Badge } from '@/Components/ui/badge'
 import { Head, router, useForm } from '@inertiajs/vue3'
+import { Switch } from '@/Components/ui/switch'
 
 const props = defineProps<{
     submit_route: string
 }>()
 
 const form = useForm({
-    source: 'timescribe'
+    source: 'timescribe',
+    imported_data_wins: false
 })
 
 const submit = () => {
@@ -61,6 +63,25 @@ const submit = () => {
                 <span class="text-muted-foreground">
                     Existing duplicates will be skipped rather than imported again.
                 </span>
+            </div>
+        </div>
+
+        <div class="border-border mt-6 border-t pt-6">
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-col gap-1">
+                    <span class="text-sm font-medium">
+                        Imported data wins on overlaps
+                    </span>
+
+                    <span class="text-muted-foreground text-sm">
+                        When enabled, existing entries will be trimmed, split,
+                        or removed where imported entries overlap them.
+                        When disabled, existing entries remain unchanged and
+                        imported entries are trimmed or skipped instead.
+                    </span>
+                </div>
+
+                <Switch v-model="form.imported_data_wins" />
             </div>
         </div>
 

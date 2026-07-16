@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\CalculateWeekBalance;
 use App\Services\Import\TimeScribeImportService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Inertia\Inertia;
 use Native\Desktop\Dialog;
@@ -22,7 +23,7 @@ class TimeScribeController extends Controller
         ])->baseRoute('import-export.index');
     }
 
-    public function store(): RedirectResponse|Redirector
+    public function store(Request $request): RedirectResponse|Redirector
     {
         $csvPath = Dialog::new()->asSheet()
             ->filter('TimeScribe CSV', ['csv'])
@@ -35,8 +36,14 @@ class TimeScribeController extends Controller
         }
 
         try {
-            $summary = new TimeScribeImportService($csvPath)
-                ->import(false);
+            $overlapMode = $request->boolean('imported_data_wins')
+                ? TimeScribeImportService::OVERLAP_REPLACE_EXISTING
+                : TimeScribeImportService::OVERLAP_KEEP_EXISTING;
+
+            $summary = (new TimeScribeImportService($csvPath))->import(
+                false,
+                $overlapMode
+            );
         } catch (\Throwable) {
             Alert::error(
                 __('app.import failed'),
@@ -73,6 +80,11 @@ class TimeScribeController extends Controller
             'Duplicate rows skipped: '.$summary['duplicate_rows_skipped'],
             'Projects created: '.$summary['projects_created'],
             'Projects reused: '.$summary['projects_reused'],
+            'Overlapping rows found: '.$summary['overlapping_rows_found'],
+            'Imported rows adjusted: '.$summary['imported_rows_split'],
+            'Existing rows split: '.$summary['existing_rows_split'],
+            'Existing rows trimmed: '.$summary['existing_rows_trimmed'],
+            'Existing rows deleted: '.$summary['existing_rows_deleted'],
         ];
 
         if ($summary['warnings']) {
