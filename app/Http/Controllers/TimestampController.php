@@ -32,6 +32,8 @@ class TimestampController extends Controller
      */
     public function create(Carbon $datetime, ?string $endDatetime = null, ?string $type = null)
     {
+        $hasSelectedRange = $endDatetime !== null;
+
         if ($endDatetime) {
             $endDatetime = Date::parse($endDatetime);
         }
@@ -83,13 +85,18 @@ class TimestampController extends Controller
             $endDatetime = $maxTime;
         }
 
+        $endDatetime ??= $maxTime;
+        if ($endDatetime->format(DateTimeFormat::TIME_VALUE) === DateTimeFormat::END_OF_DAY_TIME) {
+            $endDatetime = $endDatetime->copy()->setSecond(0);
+        }
+
         Inertia::share(['date' => $datetime->format(DateTimeFormat::DATE_VALUE)]);
 
         return Inertia::modal('Timestamp/Create', [
             'min_time' => $minTime->format(DateTimeFormat::TIME_VALUE),
             'max_time' => $maxTime->format(DateTimeFormat::TIME_VALUE),
-            'start_time' => $endDatetime ? $datetime->format(DateTimeFormat::TIME_VALUE) : null,
-            'end_time' => $endDatetime ? $endDatetime->format(DateTimeFormat::TIME_VALUE) : null,
+            'start_time' => $hasSelectedRange ? $datetime->format(DateTimeFormat::TIME_VALUE) : null,
+            'end_time' => $endDatetime->format(DateTimeFormat::TIME_VALUE),
             'submit_route' => route('timestamp.store', ['datetime' => $datetime->format(DateTimeFormat::DATE_TIME_VALUE)]),
             'projects' => ProjectResource::collection(Project::scopes('sortedByLatestTimestamp')->get()),
             'type' => $type === 'work' ? 'break' : null,
